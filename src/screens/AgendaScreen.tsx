@@ -3,7 +3,7 @@ import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { RootStackParamList } from '../types';
+import type { RootStackParamList, Cita } from '../types';
 import { useCitas } from '../hooks/useCitas';
 import { CitaCard } from '../components/CitaCard';
 import { EmptyState } from '../components/EmptyState';
@@ -13,6 +13,7 @@ import { colors, fontSize, fontWeight, radius, spacing } from '../theme/colors';
 import { formatoFechaLarga, hoyISO } from '../utils/date';
 
 type AgendaScreenProps = NativeStackScreenProps<RootStackParamList, 'Agenda'>;
+type SeccionAgenda = { fecha: string; categoria: 'activas' | 'completadas'; data: Cita[] };
 
 export function AgendaScreen({ navigation }: AgendaScreenProps) {
   const { citas, estadoCarga, error, recargar } = useCitas();
@@ -23,8 +24,8 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
     }, [recargar])
   );
 
-  // Cada fecha muestra sus citas activas y, al final, una sección completada.
-  const secciones = useMemo(() => {
+  // Cada fecha incluye primero sus citas activas y al final las completadas.
+  const secciones = useMemo<SeccionAgenda[]>(() => {
     const fechas = [...new Set(citas.map((cita) => cita.fecha))].sort();
 
     return fechas.flatMap((fecha) => {
@@ -35,7 +36,7 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
       const completadas = citasDelDia.filter((cita) => cita.estado === 'completada');
 
       return [
-        { fecha, categoria: 'activas' as const, data: activas },
+        { fecha, categoria: 'activas', data: activas },
         ...(completadas.length > 0
           ? [{ fecha, categoria: 'completadas' as const, data: completadas }]
           : []),
@@ -43,7 +44,6 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
     });
   }, [citas]);
 
-  const totalCitas = citas.length;
   const pendientes = citas.filter((cita) => cita.estado === 'pendiente').length;
 
   const abrirDetalle = (citaId: string) => {
@@ -60,7 +60,7 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
     <View style={styles.encabezadoLista}>
       <View style={styles.estadisticas}>
         <View style={styles.stat}>
-          <Text style={styles.statNumero}>{totalCitas}</Text>
+          <Text style={styles.statNumero}>{citas.length}</Text>
           <Text style={styles.statEtiqueta}>Citas</Text>
         </View>
         <View style={styles.statDivisor} />
@@ -126,14 +126,12 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
         <Text style={styles.subtitulo}>Citas agrupadas por día</Text>
       </View>
 
-      <SectionList
+      <SectionList< Cita, SeccionAgenda >
         sections={secciones}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <CitaCard cita={item} onPress={abrirDetalle} />}
         renderSectionHeader={({ section }) => (
-          <Text
-            style={section.categoria === 'completadas' ? styles.subtituloSeccion : styles.tituloFecha}
-          >
+          <Text style={section.categoria === 'completadas' ? styles.subtituloSeccion : styles.tituloFecha}>
             {section.categoria === 'completadas'
               ? 'Completadas'
               : formatoFechaLarga(section.fecha)}
@@ -161,10 +159,7 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  contenedor: {
-    flex: 1,
-    backgroundColor: colors.primary,
-  },
+  contenedor: { flex: 1, backgroundColor: colors.primary },
   header: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
@@ -178,25 +173,11 @@ const styles = StyleSheet.create({
     color: colors.surface,
     letterSpacing: -0.5,
   },
-  subtitulo: {
-    fontSize: fontSize.sm,
-    color: colors.primaryLight,
-    marginTop: 2,
-  },
-  lista: {
-    padding: spacing.lg,
-    paddingBottom: 100,
-  },
-  listaContenedor: {
-    backgroundColor: colors.background,
-  },
-  contenido: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  encabezadoLista: {
-    marginBottom: spacing.md,
-  },
+  subtitulo: { fontSize: fontSize.sm, color: colors.primaryLight, marginTop: 2 },
+  lista: { padding: spacing.lg, paddingBottom: 100 },
+  listaContenedor: { backgroundColor: colors.background },
+  contenido: { flex: 1, backgroundColor: colors.background },
+  encabezadoLista: { marginBottom: spacing.md },
   tituloFecha: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
@@ -222,34 +203,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivisor: {
-    width: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.xs,
-  },
+  stat: { flex: 1, alignItems: 'center' },
+  statDivisor: { width: 1, backgroundColor: colors.border, marginHorizontal: spacing.xs },
   statBoton: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: spacing.xs,
     borderRadius: radius.md,
   },
-  statNumero: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.extrabold,
-    color: colors.primary,
-  },
-  statEtiqueta: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  statEmoji: {
-    fontSize: fontSize.xl,
-  },
+  statNumero: { fontSize: fontSize.xxl, fontWeight: fontWeight.extrabold, color: colors.primary },
+  statEtiqueta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+  statEmoji: { fontSize: fontSize.xl },
   fab: {
     position: 'absolute',
     right: spacing.lg,
@@ -266,10 +230,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
   },
-  fabTexto: {
-    fontSize: 32,
-    fontWeight: fontWeight.bold,
-    color: colors.surface,
-    marginTop: -2,
-  },
+  fabTexto: { fontSize: 32, fontWeight: fontWeight.bold, color: colors.surface, marginTop: -2 },
 });

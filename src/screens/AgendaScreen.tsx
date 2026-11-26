@@ -1,20 +1,5 @@
-// =============================================================================
-// AgendaScreen — pantalla principal: agenda por día
-// =============================================================================
-// Muestra las citas de un día concreto, con navegación entre días (anterior
-// y siguiente) y un botón para crear una nueva cita.
-//
-// Conceptos de la Unidad 3 que demuestra esta pantalla:
-//   - FlatList para listas largas (virtualización)
-//   - filter para quedarse solo con las citas del día seleccionado
-//   - Manejo explícito de los 4 estados de carga (idle, cargando, exito, error)
-//   - useCitas como fuente única de estado
-//   - Navegación hacia el detalle y el formulario
-// =============================================================================
-
-import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { FlatList } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,102 +10,57 @@ import { EmptyState } from '../components/EmptyState';
 import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { colors, fontSize, fontWeight, radius, spacing } from '../theme/colors';
-import {
-  compararFechasISO,
-  formatoFechaLarga,
-  hoyISO,
-  sumarDiasISO,
-} from '../utils/date';
-import { useCallback, useState } from 'react';
+import { formatoFechaLarga, hoyISO } from '../utils/date';
 
 type AgendaScreenProps = NativeStackScreenProps<RootStackParamList, 'Agenda'>;
 
 export function AgendaScreen({ navigation }: AgendaScreenProps) {
   const { citas, estadoCarga, error, recargar } = useCitas();
-  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(hoyISO());
 
-  // Recarga cada vez que la pantalla recibe foco (p.ej. al volver del
-  // formulario después de crear una cita). useFocusEffect se limpia solo.
   useFocusEffect(
     useCallback(() => {
       recargar();
     }, [recargar])
   );
 
-  /**
-   * Filtra las citas del día seleccionado y las ordena por hora.
-   * useMemo evita recalcular si ni citas ni fechaSeleccionada cambiaron.
-   */
-  const citasDelDia = useMemo(() => {
-    return citas
-      .filter((c) => c.fecha === fechaSeleccionada)
-      .sort((a, b) => a.hora.localeCompare(b.hora));
-  }, [citas, fechaSeleccionada]);
+  // Cada fecha muestra sus citas activas y, al final, una sección completada.
+  const secciones = useMemo(() => {
+    const fechas = [...new Set(citas.map((cita) => cita.fecha))].sort();
 
-  // Estadísticas para la barra superior
-  const totalHoy = citasDelDia.length;
-  const pendientes = citasDelDia.filter((c) => c.estado === 'pendiente').length;
+    return fechas.flatMap((fecha) => {
+      const citasDelDia = citas
+        .filter((cita) => cita.fecha === fecha)
+        .sort((a, b) => a.hora.localeCompare(b.hora));
+      const activas = citasDelDia.filter((cita) => cita.estado !== 'completada');
+      const completadas = citasDelDia.filter((cita) => cita.estado === 'completada');
 
-  const irADiaAnterior = () => setFechaSeleccionada((f) => sumarDiasISO(f, -1));
-  const irADiaSiguiente = () => setFechaSeleccionada((f) => sumarDiasISO(f, 1));
-  const irAHoy = () => setFechaSeleccionada(hoyISO());
+      return [
+        { fecha, categoria: 'activas' as const, data: activas },
+        ...(completadas.length > 0
+          ? [{ fecha, categoria: 'completadas' as const, data: completadas }]
+          : []),
+      ];
+    });
+  }, [citas]);
 
-  const esHoy = compararFechasISO(fechaSeleccionada, hoyISO()) === 0;
+  const totalCitas = citas.length;
+  const pendientes = citas.filter((cita) => cita.estado === 'pendiente').length;
 
   const abrirDetalle = (citaId: string) => {
     navigation.navigate('CitaDetalle', { citaId });
   };
 
   const abrirFormulario = () => {
-    navigation.navigate('CitaForm', { fecha: fechaSeleccionada });
+    navigation.navigate('CitaForm', { fecha: hoyISO() });
   };
 
-  const abrirBuscar = () => {
-    navigation.navigate('Buscar');
-  };
+  const abrirBuscar = () => navigation.navigate('Buscar');
 
-  // Encabezado de la lista: barra de fecha + estadísticas
   const renderHeader = () => (
-    <View>
-      {/* Navegación entre días */}
-      <View style={styles.barraDias}>
-        <Pressable
-          onPress={irADiaAnterior}
-          style={styles.botonDia}
-          android_ripple={{ color: colors.primaryLight, radius: 100 }}
-          accessibilityRole="button"
-          accessibilityLabel="Día anterior"
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.flechaDia}>‹</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={irAHoy}
-          style={styles.fechaCentro}
-          accessibilityRole="button"
-          accessibilityLabel="Ir a hoy"
-        >
-          <Text style={styles.fechaTexto}>{formatoFechaLarga(fechaSeleccionada)}</Text>
-          {!esHoy && <Text style={styles.fechaVolver}>Toca para volver a hoy</Text>}
-        </Pressable>
-
-        <Pressable
-          onPress={irADiaSiguiente}
-          style={styles.botonDia}
-          android_ripple={{ color: colors.primaryLight, radius: 100 }}
-          accessibilityRole="button"
-          accessibilityLabel="Día siguiente"
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.flechaDia}>›</Text>
-        </Pressable>
-      </View>
-
-      {/* Estadísticas del día */}
+    <View style={styles.encabezadoLista}>
       <View style={styles.estadisticas}>
         <View style={styles.stat}>
-          <Text style={styles.statNumero}>{totalHoy}</Text>
+          <Text style={styles.statNumero}>{totalCitas}</Text>
           <Text style={styles.statEtiqueta}>Citas</Text>
         </View>
         <View style={styles.statDivisor} />
@@ -143,22 +83,20 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
     </View>
   );
 
-  // Lista vacía dentro del header
   const renderEmpty = () => (
     <EmptyState
-      titulo="No hay citas este día"
-      mensaje="Este día no tiene citas agendadas. Toca el botón + para crear la primera."
+      titulo="No hay citas"
+      mensaje="Toca + para crear la primera cita de la agenda."
       emoji="📅"
     />
   );
 
-  // Render principal según estado de carga
   if (estadoCarga === 'cargando' && citas.length === 0) {
     return (
       <SafeAreaView style={styles.contenedor} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.titulo}>Taller Mecánico</Text>
-          <Text style={styles.subtitulo}>Citas del día</Text>
+          <Text style={styles.titulo}>Agenda del taller</Text>
+          <Text style={styles.subtitulo}>Citas agrupadas por día</Text>
         </View>
         <View style={styles.contenido}>
           <LoadingState mensaje="Cargando agenda..." />
@@ -171,8 +109,8 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
     return (
       <SafeAreaView style={styles.contenedor} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.titulo}>Taller Mecánico</Text>
-          <Text style={styles.subtitulo}>Citas del día</Text>
+          <Text style={styles.titulo}>Agenda del taller</Text>
+          <Text style={styles.subtitulo}>Citas agrupadas por día</Text>
         </View>
         <View style={styles.contenido}>
           <ErrorState mensaje={error ?? 'Error desconocido'} onReintentar={recargar} />
@@ -185,23 +123,30 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
     <SafeAreaView style={styles.contenedor} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.titulo}>Agenda del taller</Text>
-        <Text style={styles.subtitulo}>Citas del día</Text>
+        <Text style={styles.subtitulo}>Citas agrupadas por día</Text>
       </View>
 
-      <FlatList
-        data={citasDelDia}
+      <SectionList
+        sections={secciones}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <CitaCard cita={item} onPress={abrirDetalle} />
+        renderItem={({ item }) => <CitaCard cita={item} onPress={abrirDetalle} />}
+        renderSectionHeader={({ section }) => (
+          <Text
+            style={section.categoria === 'completadas' ? styles.subtituloSeccion : styles.tituloFecha}
+          >
+            {section.categoria === 'completadas'
+              ? 'Completadas'
+              : formatoFechaLarga(section.fecha)}
+          </Text>
         )}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.lista}
         showsVerticalScrollIndicator={false}
         style={styles.listaContenedor}
+        stickySectionHeadersEnabled={false}
       />
 
-      {/* Botón flotante de nueva cita */}
       <Pressable
         style={styles.fab}
         onPress={abrirFormulario}
@@ -218,7 +163,7 @@ export function AgendaScreen({ navigation }: AgendaScreenProps) {
 const styles = StyleSheet.create({
   contenedor: {
     flex: 1,
-    backgroundColor: colors.primary, // Área superior (status bar) en color marca
+    backgroundColor: colors.primary,
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -240,7 +185,7 @@ const styles = StyleSheet.create({
   },
   lista: {
     padding: spacing.lg,
-    paddingBottom: 100, // espacio para el FAB
+    paddingBottom: 100,
   },
   listaContenedor: {
     backgroundColor: colors.background,
@@ -249,48 +194,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  // Barra de navegación de días
-  barraDias: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
+  encabezadoLista: {
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  botonDia: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: radius.md,
-  },
-  flechaDia: {
-    fontSize: 32,
-    fontWeight: fontWeight.extrabold,
-    color: colors.primary,
-    lineHeight: 36,
-  },
-  fechaCentro: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  fechaTexto: {
+  tituloFecha: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
-    textAlign: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
   },
-  fechaVolver: {
-    fontSize: fontSize.xs,
-    color: colors.primary,
-    marginTop: 2,
+  subtituloSeccion: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+    backgroundColor: colors.background,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
-  // Estadísticas
   estadisticas: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -328,7 +250,6 @@ const styles = StyleSheet.create({
   statEmoji: {
     fontSize: fontSize.xl,
   },
-  // FAB
   fab: {
     position: 'absolute',
     right: spacing.lg,

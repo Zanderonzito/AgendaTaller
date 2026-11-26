@@ -10,7 +10,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Cita } from '../types';
-import { generarMockInicial } from './mockData';
+import { generarMockInicial, SERVICIOS_POR_ID } from './mockData';
 
 const STORAGE_KEY = '@agenda_taller/citas_v1';
 
@@ -45,7 +45,29 @@ export async function cargarCitas(): Promise<Cita[]> {
       return mock;
     }
 
-    return parseado as Cita[];
+    const citas = parseado as Cita[];
+    let datosActualizados = false;
+    const citasMigradas = citas.map((cita) => {
+      // Reemplaza el servicio de peluquería que podía quedar guardado en
+      // instalaciones anteriores por un servicio mecánico de valor similar.
+      if (cita.servicioId === 'svc-corte-pelo') {
+        datosActualizados = true;
+        const servicio = SERVICIOS_POR_ID['svc-filtro-aire'];
+        return {
+          ...cita,
+          servicioId: servicio.id,
+          servicioNombre: servicio.nombre,
+          duracionMinutos: servicio.duracionMinutos,
+        };
+      }
+      return cita;
+    });
+
+    if (datosActualizados) {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(citasMigradas));
+    }
+
+    return citasMigradas;
   } catch (error) {
     // Reenvolvemos el error con un mensaje claro para que el hook pueda
     // mostrarlo al usuario y para que el log sea rastreable.

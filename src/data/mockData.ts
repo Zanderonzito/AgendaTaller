@@ -21,6 +21,7 @@ export const SERVICIOS: Servicio[] = [
   { id: 'svc-neumaticos', nombre: 'Cambio de neumáticos', duracionMinutos: 75, precio: 48000 },
   { id: 'svc-lavado-auto', nombre: 'Lavado y encerado', duracionMinutos: 40, precio: 9000 },
   { id: 'svc-revision-general', nombre: 'Revisión general', duracionMinutos: 90, precio: 35000 },
+  { id: 'svc-filtro-aire', nombre: 'Cambio de filtro de aire', duracionMinutos: 30, precio: 10000 },
 ];
 
 /**

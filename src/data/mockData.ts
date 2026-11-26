@@ -10,17 +10,17 @@
 import type { Cita, Servicio } from '../types';
 
 /**
- * Lista de servicios que ofrece el taller/peluquería.
+ * Lista de servicios que ofrece el taller mecánico.
  * Los IDs son estables porque las citas los referencian.
  */
 export const SERVICIOS: Servicio[] = [
   { id: 'svc-cambio-aceite', nombre: 'Cambio de aceite', duracionMinutos: 30, precio: 15000 },
   { id: 'svc-revision-frenos', nombre: 'Revisión de frenos', duracionMinutos: 60, precio: 25000 },
   { id: 'svc-alineacion', nombre: 'Alineación y balanceo', duracionMinutos: 45, precio: 20000 },
-  { id: 'svc-corte-pelo', nombre: 'Corte de cabello', duracionMinutos: 30, precio: 8000 },
-  { id: 'svc-barba', nombre: 'Arreglo de barba', duracionMinutos: 20, precio: 5000 },
-  { id: 'svc-tinte', nombre: 'Tinte y color', duracionMinutos: 90, precio: 35000 },
-  { id: 'svc-lavado', nombre: 'Lavado y secado', duracionMinutos: 25, precio: 6000 },
+  { id: 'svc-diagnostico', nombre: 'Diagnóstico eléctrico', duracionMinutos: 60, precio: 22000 },
+  { id: 'svc-neumaticos', nombre: 'Cambio de neumáticos', duracionMinutos: 75, precio: 48000 },
+  { id: 'svc-lavado-auto', nombre: 'Lavado y encerado', duracionMinutos: 40, precio: 9000 },
+  { id: 'svc-revision-general', nombre: 'Revisión general', duracionMinutos: 90, precio: 35000 },
 ];
 
 /**
@@ -84,13 +84,13 @@ export function generarMockInicial(): Cita[] {
       id: 'cita-003',
       clienteNombre: 'Ana Torres',
       clienteTelefono: '+56955554444',
-      servicioId: 'svc-corte-pelo',
-      servicioNombre: 'Corte de cabello',
+      servicioId: 'svc-diagnostico',
+      servicioNombre: 'Diagnóstico eléctrico',
       fecha: hoyISO(),
       hora: '15:30',
-      duracionMinutos: 30,
+      duracionMinutos: 60,
       estado: 'completada',
-      notas: '',
+      notas: 'Chevrolet Sail, no carga la batería.',
       createdAt: ahora,
       updatedAt: ahora,
     },
@@ -112,13 +112,13 @@ export function generarMockInicial(): Cita[] {
       id: 'cita-005',
       clienteNombre: 'Camila Rojas',
       clienteTelefono: '+56999991111',
-      servicioId: 'svc-tinte',
-      servicioNombre: 'Tinte y color',
+      servicioId: 'svc-neumaticos',
+      servicioNombre: 'Cambio de neumáticos',
       fecha: mananaISO(),
       hora: '14:00',
-      duracionMinutos: 90,
+      duracionMinutos: 75,
       estado: 'pendiente',
-      notas: 'Cliente frecuente, color cenizo.',
+      notas: 'Honda CR-V, llantas 215/65 R16.',
       createdAt: ahora,
       updatedAt: ahora,
     },
@@ -126,13 +126,13 @@ export function generarMockInicial(): Cita[] {
       id: 'cita-006',
       clienteNombre: 'Jorge Fuentes',
       clienteTelefono: '+56973214569',
-      servicioId: 'svc-lavado',
-      servicioNombre: 'Lavado y secado',
+      servicioId: 'svc-lavado-auto',
+      servicioNombre: 'Lavado y encerado',
       fecha: enDiasISO(2),
       hora: '16:00',
-      duracionMinutos: 25,
+      duracionMinutos: 40,
       estado: 'pendiente',
-      notas: '',
+      notas: 'Kia Sportage, cliente frecuente.',
       createdAt: ahora,
       updatedAt: ahora,
     },

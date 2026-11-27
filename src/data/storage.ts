@@ -1,87 +1,45 @@
 // =============================================================================
-// Capa de almacenamiento — AsyncStorage con manejo explícito de errores
+// Capa de almacenamiento: AsyncStorage con manejo explÃ­cito de errores
 // =============================================================================
-// Esta capa es la ÚNICA en la app que habla con AsyncStorage. El resto del
-// código (hooks, pantallas) usa esta API, no AsyncStorage directamente. Si
-// en algún momento quisiéramos cambiar AsyncStorage por SQLite o un backend
-// remoto, solo se toca este archivo. Esa es la idea de separar la capa de
-// datos (ver T17 de la rúbrica).
+// Esta capa es el Ãºnico lugar de la app que se comunica con AsyncStorage.
+// Las pantallas y hooks usan estas funciones para leer y guardar las citas.
 // =============================================================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Cita } from '../types';
-import { generarMockInicial, SERVICIOS_POR_ID } from './mockData';
+import { generarMockInicial } from './mockData';
 
 const STORAGE_KEY = '@agenda_taller/citas_v1';
 
 /**
- * Carga todas las citas desde AsyncStorage.
- *
- * Si AsyncStorage está vacío (primera vez que se abre la app), siembra el
- * mock inicial y lo persiste. Así el profesor ve contenido desde el primer
- * arranque, no una lista vacía.
- *
- * Maneja los cuatro estados de carga explícitamente: lanza una excepción si
- * algo falla (estado error) en vez de devolver silenciosamente un array
- * vacío, que enmascararía el problema.
+ * Carga las citas guardadas. Si es la primera ejecuciÃ³n, crea y guarda los
+ * datos iniciales para mostrar ejemplos en la agenda.
  */
 export async function cargarCitas(): Promise<Cita[]> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
     if (raw === null) {
-      // Primera carga: sembrar el mock y persistirlo
       const mock = generarMockInicial();
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mock));
       return mock;
     }
 
     const parseado: unknown = JSON.parse(raw);
-
     if (!Array.isArray(parseado)) {
-      // Datos corruptos: resembrar en vez de crashear
       const mock = generarMockInicial();
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mock));
       return mock;
     }
 
-    const citas = parseado as Cita[];
-    let datosActualizados = false;
-    const citasMigradas = citas.map((cita) => {
-      // Reemplaza el servicio de peluquería que podía quedar guardado en
-      // instalaciones anteriores por un servicio mecánico de valor similar.
-      if (cita.servicioId === 'svc-corte-pelo') {
-        datosActualizados = true;
-        const servicio = SERVICIOS_POR_ID['svc-filtro-aire'];
-        return {
-          ...cita,
-          servicioId: servicio.id,
-          servicioNombre: servicio.nombre,
-          duracionMinutos: servicio.duracionMinutos,
-        };
-      }
-      return cita;
-    });
-
-    if (datosActualizados) {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(citasMigradas));
-    }
-
-    return citasMigradas;
+    return parseado as Cita[];
   } catch (error) {
-    // Reenvolvemos el error con un mensaje claro para que el hook pueda
-    // mostrarlo al usuario y para que el log sea rastreable.
     const mensaje = error instanceof Error ? error.message : 'Error desconocido';
     throw new Error(`No se pudo cargar la agenda: ${mensaje}`);
   }
 }
 
-/**
- * Persiste el array completo de citas. Sobrescribe cualquier dato previo.
- *
- * El hook useCitas llama a esta función cada vez que el estado cambia, así
- * los datos siempre quedan en disco.
- */
+/** Persiste el array completo de citas. */
 export async function guardarCitas(citas: Cita[]): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(citas));
@@ -91,10 +49,7 @@ export async function guardarCitas(citas: Cita[]): Promise<void> {
   }
 }
 
-/**
- * Borra todo el contenido de la agenda. Útil para depuración o para que el
- * usuario reinicie la app a su estado inicial.
- */
+/** Borra todas las citas guardadas localmente; útil para reiniciar la agenda. */
 export async function borrarTodo(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
